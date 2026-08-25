@@ -1,0 +1,428 @@
+RELATORIO RACIONAL v2, MP-TSCFLP
+==============================================================================
+gerado por rational_check.py em 2026-08-25 12:33:34
+dumps: ext/logs/certdump
+instancias: ext/instancias
+checks executados: [1, 2, 3, 4]   eps de sparsificacao: 1e-06
+
+ESTRUTURA DUAL USADA PELO CHECK 3 (derivada de src3/benders_model.cpp)
+------------------------------------------------------------------------------
+Subproblema de roteamento do produto l em (y,z), como montado por
+ProductSubproblem::ProductSubproblem e ::solve:
+
+    min   sum_ij c_ijl x_ij + sum_jk d_jkl w_jk
+    s.a.  sum_j w_jk              >= q_kl      (dem_k)   alpha_k >= 0
+          sum_i x_ij - sum_k w_jk >= 0         (cons_j)  beta_j  >= 0
+          sum_j x_ij              <= b_il y_i  (fcap_i)  pi_i    <= 0
+          sum_k w_jk              <= p_jl z_j  (wcap_j)  gamma_j <= 0
+          x, w >= 0
+
+Dual, com os sinais da convencao Gurobi para minimizacao:
+
+    max   sum_k q_kl alpha_k + sum_i (b_il y_i) pi_i + sum_j (p_jl z_j) gamma_j
+    s.a.  pi_i + beta_j              <= c_ijl   (coluna x_ij)
+          alpha_k - beta_j + gamma_j <= d_jkl   (coluna w_jk)
+
+O corte gravado no dump E o objetivo dual nesse ponto: const = sum_k q_kl
+alpha_k, fac_i = b_il pi_i, ware_j = p_jl gamma_j. A REGIAO VIAVEL DUAL NAO
+DEPENDE DE (y,z); so o objetivo depende. Logo qualquer ponto dual viavel gera
+uma desigualdade valida para TODO (y,z), e provar a validade global do corte
+e exibir um ponto dual viavel cujo objetivo domine o corte emitido.
+
+Do dump recuperam-se pi_i = fac_i/b_il e gamma_j = ware_j/p_jl. Os alpha_k
+individuais nao sao recuperaveis, so a soma ponderada (a constante), e os
+beta_j das linhas de RHS zero (balanco no deposito) nao aparecem no corte.
+A validade fica equivalente a viabilidade de um sistema de DIFERENCAS em
+(alpha,beta) com (pi,gamma) fixos, que e um dual de caminho minimo em
+camadas. Por ser um DAG em camadas o Bellman-Ford exato colapsa em duas
+varreduras de minimo, e os limites simultaneamente atingiveis sao
+
+    beta_j^max  = min_i (c_ijl - pi_i)                  >= 0
+    alpha_k^max = min_j (d_jkl + beta_j^max - gamma_j)  >= 0
+
+de modo que Phi_l(pi,gamma) = sum_k q_kl alpha_k^max e o MAIOR termo
+constante compativel com (pi,gamma). O criterio exato, necessario e
+suficiente para (y,z) binario arbitrario, e
+
+    G = Phi_l(pi,gamma) - const
+        + sum_i min(0, b_il pi_i - fac_i)
+        + sum_j min(0, p_jl gamma_j - ware_j)  >= 0
+
+Tudo decidido em int/Fraction, sem simplex e sem solver. Sobre a
+sparsificacao (cut_expr dobra na constante os coeficientes com |coef| <=
+eps): os coeficientes sao <= 0 e coef*y >= coef para y em [0,1], portanto A
+DOBRA VAI PARA O LADO SEGURO, ela ENFRAQUECE o corte. O corte emitido e
+dominado pelo corte do dual verdadeiro. A recuperacao com fac_i = 0 devolve
+pi_i = 0 no lugar de um pi_i em [-eps/b_il, 0), o que so diminui Phi_l: o
+teste fica CONSERVADOR, um PASS continua prova. Em caso de FAIL entra o
+segundo estagio, que maximiza G sobre a janela [-eps/cap, 0] com variavel de
+folga explicita e prova o corte EMITIDO diretamente, e o terceiro estagio,
+que procura contraexemplo primal certificado em (y*,z*) e em (1,1).
+
+== PSC1-C1-50-5 ==
+certdump : ext/logs/certdump/PSC1-C1-50-5_20260819-222709.certdump
+instancia: ext/instancias/PSC1-C1-50-5.txt  (I=50 J=100 K=200 L=5)
+status   : OPTIMAL   cortes: 1183   v_LD: NONE   master: desagregado
+CHECK 1 (primal, fluxo exato em inteiros)
+  (F_l): 10 desigualdades, todas satisfeitas
+  roteamento exato: transporte 1374269 + fixos 549532 = 1923801
+  v_l(y*,z*) por produto: l0=272030, l1=277016, l2=281806, l3=270987, l4=272430
+  VERIFIED: bate exatamente (1923801)
+  OBJ: bate exatamente (1923801)
+CHECK 1 PASS  [2.3s]
+CHECK 2 (fechamento dos cortes no incumbente)
+  cortes cobrem 5/5 produtos (1183 cortes lidos)
+  piso reconstituido = fixos 549532 + theta 1374269.000000 = 1923801.000000
+  custo verificado   = 1923801.000000   folga = 0
+  folga < 0.9999: os cortes fecham o incumbente em aritmetica exata
+CHECK 2 PASS  [0.1s]
+CHECK 4 (piso theta_l >= v_l(1,1) e linha global v_LD)
+  (i) piso inicial theta_l >= v_l(1,1), recomputado exatamente:
+      l | v_l(1,1) exato | theta*_l = v_l(y*,z*) | margem | max corte em (y*,z*)
+      0 |         270720 |                272030 |   1310 |               272030
+      1 |         275490 |                277016 |   1526 |               277016
+      2 |         280350 |                281806 |   1456 |               281806
+      3 |         269730 |                270987 |   1257 |               270987
+      4 |         271620 |                272430 |    810 |               272430
+      margem minima 810 > 1 unidade em todos os produtos:
+      o piso theta_l >= v_l(1,1) instalado pelo construtor do mestre veio
+      de um LP em ponto flutuante; ainda que esse LP errasse por menos de
+      1 unidade para cima, o piso ficaria abaixo de theta*_l e nao poderia
+      ter excluido o incumbente otimo. (Alem disso o piso e valido por
+      monotonicidade de capacidade: v_l(y,z) >= v_l(1,1) para todo (y,z).)
+  (ii) linha global fixos + sum_l theta_l >= v_LD:
+      VLD NONE: nenhuma linha Lagrangiana foi adicionada ao mestre.
+      Exoneracao vacua, nao ha o que cortar.
+CHECK 4 PASS  [6.9s]
+CHECK 3 (validade GLOBAL de cada corte, viabilidade dual exata)
+  auditoria da sparsificacao (eps = 1e-06): 177450 coeficientes, 11379 emitidos como zero exato, 0 constantes e 0 coeficientes nao inteiros
+      todos inteiros exatos e eps < 1: NENHUMA dobra de valor nao nulo
+      pode ter ocorrido (ela deslocaria a constante para fora dos
+      inteiros). Os cortes emitidos sao os cortes duais originais e a
+      recuperacao pi_i = fac_i/b_il e exata, nao perturbada.
+  cortes validos 1183 de 1183   (prova direta 1183, resgatados pela folga 0, nao decididos 0, falhas 0)
+  margem dual G = Phi_l(pi,gamma) - const + penalidade: min 0, max 0, exatamente tight (G=0) em 1183 cortes
+CHECK 3 PASS  [5.7s]
+TOTAL PSC1-C1-50-5: PASS  [14.9s]
+
+== PSC2-C1-100-5 ==
+certdump : ext/logs/certdump/PSC2-C1-100-5_20260820-074310.certdump
+instancia: ext/instancias/PSC2-C1-100-5.txt  (I=100 J=200 K=400 L=5)
+status   : OPTIMAL   cortes: 1776   v_LD: 7546303909260111/2000000000 (~3773151.95)   master: desagregado
+CHECK 1 (primal, fluxo exato em inteiros)
+  (F_l): 10 desigualdades, todas satisfeitas
+  roteamento exato: transporte 2711753 + fixos 1066422 = 3778175
+  v_l(y*,z*) por produto: l0=540790, l1=542099, l2=542924, l3=542337, l4=543603
+  VERIFIED: bate exatamente (3778175)
+  OBJ: bate exatamente (3778175)
+CHECK 1 PASS  [17.3s]
+CHECK 2 (fechamento dos cortes no incumbente)
+  cortes cobrem 5/5 produtos (1776 cortes lidos)
+  piso reconstituido = fixos 1066422 + theta 2711753.000000 = 3778175.000000
+  custo verificado   = 3778175.000000   folga = 0
+  folga < 0.9999: os cortes fecham o incumbente em aritmetica exata
+CHECK 2 PASS  [0.2s]
+CHECK 4 (piso theta_l >= v_l(1,1) e linha global v_LD)
+  (i) piso inicial theta_l >= v_l(1,1), recomputado exatamente:
+      l | v_l(1,1) exato | theta*_l = v_l(y*,z*) | margem | max corte em (y*,z*)
+      0 |         539730 |                540790 |   1060 |               540790
+      1 |         541350 |                542099 |    749 |               542099
+      2 |         542520 |                542924 |    404 |               542924
+      3 |         541710 |                542337 |    627 |               542337
+      4 |         542970 |                543603 |    633 |               543603
+      margem minima 404 > 1 unidade em todos os produtos:
+      o piso theta_l >= v_l(1,1) instalado pelo construtor do mestre veio
+      de um LP em ponto flutuante; ainda que esse LP errasse por menos de
+      1 unidade para cima, o piso ficaria abaixo de theta*_l e nao poderia
+      ter excluido o incumbente otimo. (Alem disso o piso e valido por
+      monotonicidade de capacidade: v_l(y,z) >= v_l(1,1) para todo (y,z).)
+  (ii) linha global fixos + sum_l theta_l >= v_LD:
+      custo verificado = 3778175
+      v_LD             = 7546303909260111/2000000000 (~3773151.95)
+      folga exata      = 10046090739889/2000000000 (~5023.04537)
+      folga > 0: no ponto otimo o mestre tem fixos + sum theta_l = custo
+      (CHECK 2 fecha com folga zero, logo theta*_l = v_l(y*,z*)), e esse
+      valor satisfaz a linha com folga estritamente positiva. A linha
+      global NAO pode ter cortado o otimo, qualquer que seja o erro do
+      subgradiente que produziu v_LD, desde que menor que a folga.
+CHECK 4 PASS  [68.4s]
+CHECK 3 (validade GLOBAL de cada corte, viabilidade dual exata)
+  auditoria da sparsificacao (eps = 1e-06): 532800 coeficientes, 42006 emitidos como zero exato, 0 constantes e 0 coeficientes nao inteiros
+      todos inteiros exatos e eps < 1: NENHUMA dobra de valor nao nulo
+      pode ter ocorrido (ela deslocaria a constante para fora dos
+      inteiros). Os cortes emitidos sao os cortes duais originais e a
+      recuperacao pi_i = fac_i/b_il e exata, nao perturbada.
+  cortes validos 1776 de 1776   (prova direta 1776, resgatados pela folga 0, nao decididos 0, falhas 0)
+  margem dual G = Phi_l(pi,gamma) - const + penalidade: min 0, max 0, exatamente tight (G=0) em 1776 cortes
+CHECK 3 PASS  [28.0s]
+TOTAL PSC2-C1-100-5: PASS  [113.8s]
+
+== PSC3-C1-100-5 ==
+certdump : ext/logs/certdump/PSC3-C1-100-5_20260819-232124.certdump
+instancia: ext/instancias/PSC3-C1-100-5.txt  (I=100 J=200 K=400 L=5)
+status   : OPTIMAL   cortes: 459   v_LD: 37813457203519079/10000000000 (~3781345.72)   master: desagregado
+CHECK 1 (primal, fluxo exato em inteiros)
+  (F_l): 10 desigualdades, todas satisfeitas
+  roteamento exato: transporte 2706655 + fixos 1080027 = 3786682
+  v_l(y*,z*) por produto: l0=535461, l1=542135, l2=543374, l3=542119, l4=543566
+  VERIFIED: bate exatamente (3786682)
+  OBJ: bate exatamente (3786682)
+CHECK 1 PASS  [18.0s]
+CHECK 2 (fechamento dos cortes no incumbente)
+  cortes cobrem 5/5 produtos (459 cortes lidos)
+  piso reconstituido = fixos 1080027 + theta 2706655.000000 = 3786682.000000
+  custo verificado   = 3786682.000000   folga = 0
+  folga < 0.9999: os cortes fecham o incumbente em aritmetica exata
+CHECK 2 PASS  [0.1s]
+CHECK 4 (piso theta_l >= v_l(1,1) e linha global v_LD)
+  (i) piso inicial theta_l >= v_l(1,1), recomputado exatamente:
+      l | v_l(1,1) exato | theta*_l = v_l(y*,z*) | margem | max corte em (y*,z*)
+      0 |         534690 |                535461 |    771 |               535461
+      1 |         541350 |                542135 |    785 |               542135
+      2 |         542520 |                543374 |    854 |               543374
+      3 |         541710 |                542119 |    409 |               542119
+      4 |         542970 |                543566 |    596 |               543566
+      margem minima 409 > 1 unidade em todos os produtos:
+      o piso theta_l >= v_l(1,1) instalado pelo construtor do mestre veio
+      de um LP em ponto flutuante; ainda que esse LP errasse por menos de
+      1 unidade para cima, o piso ficaria abaixo de theta*_l e nao poderia
+      ter excluido o incumbente otimo. (Alem disso o piso e valido por
+      monotonicidade de capacidade: v_l(y,z) >= v_l(1,1) para todo (y,z).)
+  (ii) linha global fixos + sum_l theta_l >= v_LD:
+      custo verificado = 3786682
+      v_LD             = 37813457203519079/10000000000 (~3781345.72)
+      folga exata      = 53362796480921/10000000000 (~5336.27965)
+      folga > 0: no ponto otimo o mestre tem fixos + sum theta_l = custo
+      (CHECK 2 fecha com folga zero, logo theta*_l = v_l(y*,z*)), e esse
+      valor satisfaz a linha com folga estritamente positiva. A linha
+      global NAO pode ter cortado o otimo, qualquer que seja o erro do
+      subgradiente que produziu v_LD, desde que menor que a folga.
+CHECK 4 PASS  [68.7s]
+CHECK 3 (validade GLOBAL de cada corte, viabilidade dual exata)
+  auditoria da sparsificacao (eps = 1e-06): 137700 coeficientes, 10805 emitidos como zero exato, 0 constantes e 0 coeficientes nao inteiros
+      todos inteiros exatos e eps < 1: NENHUMA dobra de valor nao nulo
+      pode ter ocorrido (ela deslocaria a constante para fora dos
+      inteiros). Os cortes emitidos sao os cortes duais originais e a
+      recuperacao pi_i = fac_i/b_il e exata, nao perturbada.
+  cortes validos 459 de 459   (prova direta 459, resgatados pela folga 0, nao decididos 0, falhas 0)
+  margem dual G = Phi_l(pi,gamma) - const + penalidade: min 0, max 0, exatamente tight (G=0) em 459 cortes
+CHECK 3 PASS  [7.7s]
+TOTAL PSC3-C1-100-5: PASS  [94.5s]
+
+== PSC4-C1-100-5 ==
+certdump : ext/logs/certdump/PSC4-C1-100-5_20260820-001044.certdump
+instancia: ext/instancias/PSC4-C1-100-5.txt  (I=100 J=200 K=400 L=5)
+status   : OPTIMAL   cortes: 688   v_LD: 18874498017539317/5000000000 (~3774899.6)   master: desagregado
+CHECK 1 (primal, fluxo exato em inteiros)
+  (F_l): 10 desigualdades, todas satisfeitas
+  roteamento exato: transporte 2714777 + fixos 1064753 = 3779530
+  v_l(y*,z*) por produto: l0=544109, l1=541782, l2=542903, l3=542559, l4=543424
+  VERIFIED: bate exatamente (3779530)
+  OBJ: bate exatamente (3779530)
+CHECK 1 PASS  [18.3s]
+CHECK 2 (fechamento dos cortes no incumbente)
+  cortes cobrem 5/5 produtos (688 cortes lidos)
+  piso reconstituido = fixos 1064753 + theta 2714777.000000 = 3779530.000000
+  custo verificado   = 3779530.000000   folga = 0
+  folga < 0.9999: os cortes fecham o incumbente em aritmetica exata
+CHECK 2 PASS  [0.1s]
+CHECK 4 (piso theta_l >= v_l(1,1) e linha global v_LD)
+  (i) piso inicial theta_l >= v_l(1,1), recomputado exatamente:
+      l | v_l(1,1) exato | theta*_l = v_l(y*,z*) | margem | max corte em (y*,z*)
+      0 |         543510 |                544109 |    599 |               544109
+      1 |         541350 |                541782 |    432 |               541782
+      2 |         542520 |                542903 |    383 |               542903
+      3 |         541710 |                542559 |    849 |               542559
+      4 |         542970 |                543424 |    454 |               543424
+      margem minima 383 > 1 unidade em todos os produtos:
+      o piso theta_l >= v_l(1,1) instalado pelo construtor do mestre veio
+      de um LP em ponto flutuante; ainda que esse LP errasse por menos de
+      1 unidade para cima, o piso ficaria abaixo de theta*_l e nao poderia
+      ter excluido o incumbente otimo. (Alem disso o piso e valido por
+      monotonicidade de capacidade: v_l(y,z) >= v_l(1,1) para todo (y,z).)
+  (ii) linha global fixos + sum_l theta_l >= v_LD:
+      custo verificado = 3779530
+      v_LD             = 18874498017539317/5000000000 (~3774899.6)
+      folga exata      = 23151982460683/5000000000 (~4630.39649)
+      folga > 0: no ponto otimo o mestre tem fixos + sum theta_l = custo
+      (CHECK 2 fecha com folga zero, logo theta*_l = v_l(y*,z*)), e esse
+      valor satisfaz a linha com folga estritamente positiva. A linha
+      global NAO pode ter cortado o otimo, qualquer que seja o erro do
+      subgradiente que produziu v_LD, desde que menor que a folga.
+CHECK 4 PASS  [71.9s]
+CHECK 3 (validade GLOBAL de cada corte, viabilidade dual exata)
+  auditoria da sparsificacao (eps = 1e-06): 206400 coeficientes, 19716 emitidos como zero exato, 0 constantes e 0 coeficientes nao inteiros
+      todos inteiros exatos e eps < 1: NENHUMA dobra de valor nao nulo
+      pode ter ocorrido (ela deslocaria a constante para fora dos
+      inteiros). Os cortes emitidos sao os cortes duais originais e a
+      recuperacao pi_i = fac_i/b_il e exata, nao perturbada.
+  cortes validos 688 de 688   (prova direta 688, resgatados pela folga 0, nao decididos 0, falhas 0)
+  margem dual G = Phi_l(pi,gamma) - const + penalidade: min 0, max 0, exatamente tight (G=0) em 688 cortes
+CHECK 3 PASS  [10.4s]
+TOTAL PSC4-C1-100-5: PASS  [100.7s]
+
+== PSC4-C1-50-5 ==
+certdump : ext/logs/certdump/PSC4-C1-50-5_20260819-235813.certdump
+instancia: ext/instancias/PSC4-C1-50-5.txt  (I=50 J=100 K=200 L=5)
+status   : OPTIMAL   cortes: 793   v_LD: NONE   master: desagregado
+CHECK 1 (primal, fluxo exato em inteiros)
+  (F_l): 10 desigualdades, todas satisfeitas
+  roteamento exato: transporte 1377140 + fixos 532519 = 1909659
+  v_l(y*,z*) por produto: l0=272726, l1=277146, l2=283166, l3=271070, l4=273032
+  VERIFIED: bate exatamente (1909659)
+  OBJ: bate exatamente (1909659)
+CHECK 1 PASS  [2.3s]
+CHECK 2 (fechamento dos cortes no incumbente)
+  cortes cobrem 5/5 produtos (793 cortes lidos)
+  piso reconstituido = fixos 532519 + theta 1377140.000000 = 1909659.000000
+  custo verificado   = 1909659.000000   folga = 0
+  folga < 0.9999: os cortes fecham o incumbente em aritmetica exata
+CHECK 2 PASS  [0.0s]
+CHECK 4 (piso theta_l >= v_l(1,1) e linha global v_LD)
+  (i) piso inicial theta_l >= v_l(1,1), recomputado exatamente:
+      l | v_l(1,1) exato | theta*_l = v_l(y*,z*) | margem | max corte em (y*,z*)
+      0 |         270900 |                272726 |   1826 |               272726
+      1 |         275490 |                277146 |   1656 |               277146
+      2 |         280350 |                283166 |   2816 |               283166
+      3 |         269730 |                271070 |   1340 |               271070
+      4 |         271620 |                273032 |   1412 |               273032
+      margem minima 1340 > 1 unidade em todos os produtos:
+      o piso theta_l >= v_l(1,1) instalado pelo construtor do mestre veio
+      de um LP em ponto flutuante; ainda que esse LP errasse por menos de
+      1 unidade para cima, o piso ficaria abaixo de theta*_l e nao poderia
+      ter excluido o incumbente otimo. (Alem disso o piso e valido por
+      monotonicidade de capacidade: v_l(y,z) >= v_l(1,1) para todo (y,z).)
+  (ii) linha global fixos + sum_l theta_l >= v_LD:
+      VLD NONE: nenhuma linha Lagrangiana foi adicionada ao mestre.
+      Exoneracao vacua, nao ha o que cortar.
+CHECK 4 PASS  [5.9s]
+CHECK 3 (validade GLOBAL de cada corte, viabilidade dual exata)
+  auditoria da sparsificacao (eps = 1e-06): 118950 coeficientes, 6125 emitidos como zero exato, 0 constantes e 0 coeficientes nao inteiros
+      todos inteiros exatos e eps < 1: NENHUMA dobra de valor nao nulo
+      pode ter ocorrido (ela deslocaria a constante para fora dos
+      inteiros). Os cortes emitidos sao os cortes duais originais e a
+      recuperacao pi_i = fac_i/b_il e exata, nao perturbada.
+  cortes validos 793 de 793   (prova direta 793, resgatados pela folga 0, nao decididos 0, falhas 0)
+  margem dual G = Phi_l(pi,gamma) - const + penalidade: min 0, max 0, exatamente tight (G=0) em 793 cortes
+CHECK 3 PASS  [3.2s]
+TOTAL PSC4-C1-50-5: PASS  [11.4s]
+
+== PSC5-C1-100-5 ==
+certdump : ext/logs/certdump/PSC5-C1-100-5_20260820-004806.certdump
+instancia: ext/instancias/PSC5-C1-100-5.txt  (I=100 J=200 K=400 L=5)
+status   : OPTIMAL   cortes: 363   v_LD: NONE   master: desagregado
+CHECK 1 (primal, fluxo exato em inteiros)
+  (F_l): 10 desigualdades, todas satisfeitas
+  roteamento exato: transporte 2699269 + fixos 1098481 = 3797750
+  v_l(y*,z*) por produto: l0=536875, l1=536068, l2=541179, l3=544928, l4=540219
+  VERIFIED: bate exatamente (3797750)
+  OBJ: bate exatamente (3797750)
+CHECK 1 PASS  [14.9s]
+CHECK 2 (fechamento dos cortes no incumbente)
+  cortes cobrem 5/5 produtos (363 cortes lidos)
+  piso reconstituido = fixos 1098481 + theta 2699269.000000 = 3797750.000000
+  custo verificado   = 3797750.000000   folga = 0
+  folga < 0.9999: os cortes fecham o incumbente em aritmetica exata
+CHECK 2 PASS  [0.0s]
+CHECK 4 (piso theta_l >= v_l(1,1) e linha global v_LD)
+  (i) piso inicial theta_l >= v_l(1,1), recomputado exatamente:
+      l | v_l(1,1) exato | theta*_l = v_l(y*,z*) | margem | max corte em (y*,z*)
+      0 |         536400 |                536875 |    475 |               536875
+      1 |         535140 |                536068 |    928 |               536068
+      2 |         540630 |                541179 |    549 |               541179
+      3 |         544230 |                544928 |    698 |               544928
+      4 |         539640 |                540219 |    579 |               540219
+      margem minima 475 > 1 unidade em todos os produtos:
+      o piso theta_l >= v_l(1,1) instalado pelo construtor do mestre veio
+      de um LP em ponto flutuante; ainda que esse LP errasse por menos de
+      1 unidade para cima, o piso ficaria abaixo de theta*_l e nao poderia
+      ter excluido o incumbente otimo. (Alem disso o piso e valido por
+      monotonicidade de capacidade: v_l(y,z) >= v_l(1,1) para todo (y,z).)
+  (ii) linha global fixos + sum_l theta_l >= v_LD:
+      VLD NONE: nenhuma linha Lagrangiana foi adicionada ao mestre.
+      Exoneracao vacua, nao ha o que cortar.
+CHECK 4 PASS  [67.8s]
+CHECK 3 (validade GLOBAL de cada corte, viabilidade dual exata)
+  auditoria da sparsificacao (eps = 1e-06): 108900 coeficientes, 11660 emitidos como zero exato, 0 constantes e 0 coeficientes nao inteiros
+      todos inteiros exatos e eps < 1: NENHUMA dobra de valor nao nulo
+      pode ter ocorrido (ela deslocaria a constante para fora dos
+      inteiros). Os cortes emitidos sao os cortes duais originais e a
+      recuperacao pi_i = fac_i/b_il e exata, nao perturbada.
+  cortes validos 363 de 363   (prova direta 363, resgatados pela folga 0, nao decididos 0, falhas 0)
+  margem dual G = Phi_l(pi,gamma) - const + penalidade: min 0, max 0, exatamente tight (G=0) em 363 cortes
+CHECK 3 PASS  [6.0s]
+TOTAL PSC5-C1-100-5: PASS  [88.7s]
+
+==============================================================================
+SUMARIO
+==============================================================================
+
+instancia          C1    C2    C3 validos    C4 margem  folga v_LD    tempo
+------------------------------------------------------------------------------
+PSC1-C1-50-5       OK    OK    1183/1183    810         ausente      14.9s
+PSC2-C1-100-5      OK    OK    1776/1776    404         5023.05      113.8s
+PSC3-C1-100-5      OK    OK    459/459      409         5336.28      94.5s
+PSC4-C1-100-5      OK    OK    688/688      383         4630.40      100.7s
+PSC4-C1-50-5       OK    OK    793/793      1340        ausente      11.4s
+PSC5-C1-100-5      OK    OK    363/363      475         ausente      88.7s
+
+(a folga de v_LD aparece arredondada aqui; o valor EXATO em Fraction esta
+ no bloco CHECK 4 de cada instancia. 'ausente' = o run nao adicionou a linha
+ Lagrangiana ao mestre, entao nao ha o que exonerar.)
+
+CHECK 3 consolidado: 5262 de 5262 cortes de otimalidade demonstrados VALIDOS para todo (y,z) binario
+                     5262 deles com margem dual exatamente zero (o dual recuperado e o proprio dual otimo do subproblema)
+                     0 falhas, 0 nao decididos
+
+O QUE A CADEIA COBRE AGORA
+------------------------------------------------------------------------------
+O mestre final e composto por, e somente por, as seguintes familias de
+desigualdades. Cada uma esta abaixo com o seu estatuto apos os CHECK 1-4.
+
+  (a) y, z binarios, theta_l >= 0                : definicao das variaveis.
+  (b) (F1_l), (F2_l): sum_i b_il y_i >= Q_l e
+      sum_j p_jl z_j >= Q_l                      : validas por argumento
+      combinatorio elementar (a capacidade aberta tem de cobrir a demanda);
+      CHECK 1 confere que o incumbente as satisfaz.
+  (c) cortes de otimalidade de Benders           : CHECK 3. Cada um dos
+      5262 cortes recebeu um ponto dual viavel EXPLICITO do LP de
+      roteamento cujo objetivo domina o corte; como a regiao dual nao
+      depende de (y,z), a desigualdade e valida em TODO o cubo, nao so no
+      incumbente. Demonstrado em aritmetica exata, sem solver.
+  (d) piso theta_l >= v_l(1,1)                   : CHECK 4(i). Valido por
+      monotonicidade de capacidade; alem disso a margem theta*_l - v_l(1,1)
+      medida exatamente e grande, entao nem um erro sub-unitario do LP que
+      gerou o piso poderia ter excluido o incumbente.
+  (e) linha global fixos + sum_l theta_l >= v_LD : CHECK 4(ii). Exonerada:
+      no otimo a folga exata e estritamente positiva (ou a linha sequer foi
+      adicionada), logo a linha nao cortou o otimo.
+
+Somando: toda desigualdade do mestre final esta demonstrada valida ou
+exonerada no otimo, e o valor do incumbente esta recomputado em inteiros
+por um solver de fluxo independente (CHECK 1), com os cortes fechando esse
+valor com folga zero (CHECK 2).
+
+UM COROLARIO QUE SO EXISTE COM O CHECK 3
+------------------------------------------------------------------------------
+Antes do CHECK 3, o CHECK 2 dizia apenas 'a soma dos maiores cortes iguala o
+transporte'. Com a validade dos cortes DEMONSTRADA, cada corte avaliado em
+(y*,z*) e um piso legitimo de v_l(y*,z*), logo best_l <= v_l(y*,z*) para todo
+l. Como o CHECK 2 fecha com folga EXATAMENTE zero, sum_l best_l = sum_l
+v_l(y*,z*), e uma soma de desigualdades <= que fecha com igualdade forca
+igualdade termo a termo: best_l = v_l(y*,z*) = theta*_l. Ou seja, no ponto
+otimo o mestre nao superestima NEM subestima nenhum theta_l; a relaxacao de
+Benders e exata em (y*,z*). E esse fato que sustenta a exoneracao da linha
+v_LD no CHECK 4(ii), que precisa saber o valor de fixos + sum_l theta_l no
+otimo do mestre, e nao apenas um piso dele.
+
+O UNICO ELO RESTANTE
+------------------------------------------------------------------------------
+A ARVORE DO SOLVER. Nada aqui reconstroi quais nos o branch-and-bound
+explorou, com que cota cada no foi podado, nem os cortes proprios do
+Gurobi (MIR, Gomory, cover) aplicados internamente. O certificado prova
+que o mestre final e uma relaxacao VALIDA cujo otimo o incumbente atinge,
+mas a afirmacao 'nenhuma outra abertura e mais barata' continua apoiada na
+corretude da busca do solver. Fechar esse elo exigiria despejar a arvore
+inteira ou uma prova dual do mestre, o que nao esta implementado.
+
+tempo total do relatorio: 428.3s

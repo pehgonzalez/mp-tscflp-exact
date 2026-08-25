@@ -1,0 +1,45 @@
+== PSC1-C1-50-5 ==
+CHECK 1 (primal, fluxo exato em inteiros)
+CHECK 1 PASS
+CHECK 2 (fechamento dos cortes no incumbente)
+  custo verificado   = 1923801.000000   folga = 0
+CHECK 2 PASS
+LEMBRETE: o CHECK 2 certifica o incumbente no ponto (y*,z*), nao a otimalidade global; ver LIMITACOES no topo do arquivo.
+== PSC2-C1-100-5 ==
+CHECK 1 (primal, fluxo exato em inteiros)
+CHECK 1 PASS
+CHECK 2 (fechamento dos cortes no incumbente)
+  custo verificado   = 3778175.000000   folga = 0
+CHECK 2 PASS
+nota: v_LD=3773151.954630, custo=3778175.000000, folga Lagrangiana=5023.05 (informativo, o CHECK 2 nao usa v_LD)
+LEMBRETE: o CHECK 2 certifica o incumbente no ponto (y*,z*), nao a otimalidade global; ver LIMITACOES no topo do arquivo.
+== PSC3-C1-100-5 ==
+CHECK 1 (primal, fluxo exato em inteiros)
+CHECK 1 PASS
+CHECK 2 (fechamento dos cortes no incumbente)
+  custo verificado   = 3786682.000000   folga = 0
+CHECK 2 PASS
+nota: v_LD=3781345.720352, custo=3786682.000000, folga Lagrangiana=5336.28 (informativo, o CHECK 2 nao usa v_LD)
+LEMBRETE: o CHECK 2 certifica o incumbente no ponto (y*,z*), nao a otimalidade global; ver LIMITACOES no topo do arquivo.
+== PSC4-C1-100-5 ==
+CHECK 1 (primal, fluxo exato em inteiros)
+CHECK 1 PASS
+CHECK 2 (fechamento dos cortes no incumbente)
+  custo verificado   = 3779530.000000   folga = 0
+CHECK 2 PASS
+nota: v_LD=3774899.603508, custo=3779530.000000, folga Lagrangiana=4630.4 (informativo, o CHECK 2 nao usa v_LD)
+LEMBRETE: o CHECK 2 certifica o incumbente no ponto (y*,z*), nao a otimalidade global; ver LIMITACOES no topo do arquivo.
+== PSC4-C1-50-5 ==
+CHECK 1 (primal, fluxo exato em inteiros)
+CHECK 1 PASS
+CHECK 2 (fechamento dos cortes no incumbente)
+  custo verificado   = 1909659.000000   folga = 0
+CHECK 2 PASS
+LEMBRETE: o CHECK 2 certifica o incumbente no ponto (y*,z*), nao a otimalidade global; ver LIMITACOES no topo do arquivo.
+== PSC5-C1-100-5 ==
+CHECK 1 (primal, fluxo exato em inteiros)
+CHECK 1 PASS
+CHECK 2 (fechamento dos cortes no incumbente)
+  custo verificado   = 3797750.000000   folga = 0
+CHECK 2 PASS
+LEMBRETE: o CHECK 2 certifica o incumbente no ponto (y*,z*), nao a otimalidade global; ver LIMITACOES no topo do arquivo.
