@@ -127,8 +127,12 @@ for j, ax in enumerate(axes):
             ax.text(c, a + dy, f"{v:.1f}", ha="center", va="center",
                     color=col, fontsize=8.6)
             if NC[j, a, c]:
-                ax.text(c, a + 0.27, f"{NC[j, a, c]} closed", ha="center",
-                        va="center", color=col, fontsize=5.8)
+                # Rodada 9. O rotulo "N closed" era mais largo que a celula e
+                # transbordava para fora do painel na primeira coluna, num
+                # corpo ilegivel. Vira uma contagem entre parenteses, que cabe
+                # na celula e e definida na legenda da figura.
+                ax.text(c, a + 0.26, f"({NC[j, a, c]})", ha="center",
+                        va="center", color=col, fontsize=7.8)
     ax.spines["left"].set_visible(False)
     ax.spines["bottom"].set_visible(False)
     ax.tick_params(length=0)
