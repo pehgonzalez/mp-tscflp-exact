@@ -13,7 +13,7 @@ the reported numbers.
 | `tests/` | Solver-free core tests. |
 | `data/instances/` | The 100 benchmark instances. `FORMAT_original.txt` documents the file format. |
 | `data/bks_reference.csv` | Published best-known values used as reference. |
-| `scripts/` | Campaign drivers for Windows PowerShell. `run_campanha_revisao.ps1` runs the full revision campaign, `run_extensao_rodada3.ps1` the certification and factorial extension with a progress dashboard. |
+| `scripts/` | Campaign drivers for Windows PowerShell. `run_campanha_revisao.ps1` runs the full revision campaign, `run_extensao_rodada3.ps1` the certification and factorial extension with a progress dashboard, and `run_bound_sweep.ps1` the root-bound battery over the whole benchmark, resumable after interruption. |
 | `python/` | Table, figure and statistics generators, reference implementations in gurobipy, and the verification tools. |
 | `results/results.csv` | The complete campaign record, 1,620 runs, one row per run. |
 | `results/certdump/` | The recorded final masters of the six audited closures. |
@@ -181,6 +181,14 @@ Every table and figure of the paper regenerates from `results/results.csv`.
 
 ```sh
 python3 python/make_tables.py results/results.csv data/bks_reference.csv
+```
+
+The root-bound battery of the paper reruns with the sweep driver, which calls
+`python/measure_bounds.py` once per instance and appends one row per
+measurement.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\run_bound_sweep.ps1
 ```
 
 The exact-arithmetic audit of the six recorded masters runs with the standard
