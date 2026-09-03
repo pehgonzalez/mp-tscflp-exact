@@ -15,7 +15,8 @@ the reported numbers.
 | `data/bks_reference.csv` | Published best-known values used as reference. |
 | `scripts/` | Campaign drivers for Windows PowerShell. `run_campanha_revisao.ps1` runs the full revision campaign, `run_extensao_rodada3.ps1` the certification and factorial extension with a progress dashboard, and `run_bound_sweep.ps1` the root-bound battery over the whole benchmark, resumable after interruption. |
 | `python/` | Table, figure and statistics generators, reference implementations in gurobipy, and the verification tools. |
-| `results/results.csv` | The complete campaign record, 1,620 runs, one row per run. |
+| `results/results.csv` | The complete campaign record, 1,620 runs, one row per run. The field table below documents every column. |
+| `results/clocks.csv` | The machine telemetry of the campaign, 6,392 samples of processor clock and load taken every sixty seconds. |
 | `results/certdump/` | The recorded final masters of the six audited closures. |
 | `results/rational_report_v2.txt` | Output of the exact-arithmetic audit over those six masters. |
 
@@ -174,6 +175,35 @@ The campaign drivers resume from `results.csv` and skip runs already recorded:
 powershell -ExecutionPolicy Bypass -File scripts\run_campanha_revisao.ps1 -Mode Report
 powershell -ExecutionPolicy Bypass -File scripts\run_campanha_revisao.ps1 -Mode Apply
 ```
+
+### The fields of results.csv
+
+One row per run, appended by the binary at the end of the run.
+
+| Column | Content |
+| --- | --- |
+| `datetime` | Timestamp of the run start, local time, format `YYYYMMDD-HHMMSS`. |
+| `instance` | Instance file stem, e.g. `PSC1-C1-50-5`. |
+| `mode` | The configuration label of the run, see the mode table above. |
+| `method` | The engine, 0 direct MIP, 1 BBC, 2 L-BBC. |
+| `seed` | Gurobi `Seed` of the run. |
+| `threads` | Gurobi `Threads` of the run. |
+| `time_limit_s` | Time budget of the run in seconds. |
+| `status` | `OPTIMAL`, `FEASIBLE`, `INFEASIBLE` or `NOTFOUND`, from the engine's final status. |
+| `obj` | Objective value of the reported incumbent. |
+| `bound` | Final dual bound of the run. |
+| `gap` | Relative gap between `obj` and `bound` at the end of the run. |
+| `solver_time_s` | Solver time of the main search, in seconds. |
+| `total_wall_s` | Wall-clock time of the whole run, every phase included. |
+| `lag_lb` | Recorded lower bound of the Lagrangian phase, `-1` when the run has no phase. |
+| `lag_ub` | Cost of the repaired incumbent the phase produced, `-1` when the run has no phase. |
+| `lag_time_s` | Wall-clock time of the Lagrangian phase, in seconds. |
+| `benders_cuts` | Number of optimality cuts the Benders engines added, `0` for the direct solve. |
+| `heuristic_cost` | Cost of the heuristic solution handed to the engine as a start, `-1` when none. |
+| `verified_cost` | Cost of the reported openings recomputed by the solver-free evaluator, `-1` when the verification did not confirm a routing. |
+| `verified_ok` | `1` when the solver-free re-routing confirmed a feasible routing for the reported openings, `0` otherwise. |
+| `gurobi_version` | Solver version of the run. |
+| `gurobi_log` | Path of the full solver log of the run. |
 
 ## Verify the reported numbers
 
